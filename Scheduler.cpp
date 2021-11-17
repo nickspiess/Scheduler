@@ -39,8 +39,60 @@ public:
 };
 
 void RTS(vector<Process> processes, ofstream& stream) {
-   
+    
     }
+
+
+void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream) {
+    // queue marker
+    int whichQueue = 0;
+
+    vector<queue<Process*> > queues;
+    for (int i = 0; i < numQueues; i++) {
+        queue<Process*> queue;
+        queues.push_back(queue);
+    }
+
+
+    Process* processor = NULL;
+
+    unsigned long long int masterWaitTime = 0;
+    unsigned long long int masterComplete = 0;
+    unsigned long long int masterTurnAround = 0;
+    int timer = 0;
+    const int masterTimeQuantum = timeQuantum;
+    int masterTimeQuantumQueue = 0;
+    int time_Quantum = masterTimeQuantum;
+    int ageInterval = ageInterval;
+    int readyProcesses = 0;
+
+
+    // We are going to gather fresh processes when arrival arrives
+    while (readyProcesses.size() > 0 || processes.size() > 0) {
+        while (processes.size() > 0 && processes.back().processesArr <= timer) {
+            queues[0].push(processes.back());
+            processes.pop_back();
+            readyProcesses++;
+        }
+
+
+        whichQueue = 0;
+        // cycle through queues to find a process
+        while(whichQueue < queues.size() && queues[whichQueue].size() == 0) {
+            whichQueue++;
+        }
+
+        
+
+
+
+    }
+
+
+
+
+}
+
 
 // This function is to create and return a vector of processes
 vector<Process> processCreator(string fileName) {
@@ -87,19 +139,22 @@ vector<Process> processCreator(string fileName) {
 
 
 bool compareArrival(const Process beg, const Process end){
-    return beg.processArr > end.processArr;
+    return beg.processArr < end.processArr;
 }
 
 
 int main()
 {
     
-    vector<Process> processes;
+    vector<Process> proccesses;
     string programType;
     int numQueues;
     string fileName;
     int ageInterval;
     int timeQuantum;
+    string mfqsOutputFileName = "MFQSOutput.txt";
+
+    fstream mfqsOutputFile;
     
     std::cout << "Welcome to our Scheduling Algorithm Program\n";
     std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:" << endl;
@@ -155,31 +210,35 @@ int main()
                     //Process OldProc = *
                 //}
             }
-
+                
+            //Process proc = processes.begin();
+            
             // We now will sort our processes baseed on arrival time.
             sort(processes.begin(), processes.end(), compareArrival);
 
             cout << "Grabbing MFQS Information:\n";
             cout << "What is the age interval?:\n";
             cin >> ageInterval;
-            cout << "What is the Time Quantum?:\n";
+            cout << "\nWhat is the Time Quantum?:\n";
             cin >> timeQuantum;
             
             // size of processes array
-            int size = processes.size();
-            std::cout << "size = " << size << "\n";
-            Process proc;
-            //proc = processes.begin();
-            //cout << "PID = " << proc.processPid;
+            //int size = processes.size();
+            //std::cout << "size = " << size << "\n";
+            for (int i = 0; i <= processes.size() - 1; i++) {
+                cout << "PID = " << processes[i].processPid << "   Arrival: " << processes[i].processArr << "\n";
+            }
 
-
-            //for (int i = 0; i <= size; i++) {
-             //   cout << "PID = " << processes.begin().processPid;
-                //<< " BST = " << bst << " arr = " << arr << " pri = " << pri << " dline = " << dline << " IO = " << IO << endl;
-            //}
-
-            //cout << "PID = " << pid << " BST = " << bst << " arr = " << arr << " pri = " << pri << " dline = " << dline << " IO = " << IO << endl;
-
+            //mfqsOutputFile.open(mfqsOutputFileName, std::fstream::out || std::fstream::trunc);
+            // Call MFQS function
+            //MFQS(processes, int numQueues, int ageInterval, int timeQuantum, mfqsOutputFile);
+            //void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream) {
+            //mfqsOutputFile << "\n";
+            //cout << "Reading the file output: " << mfqsOutputFileName << "\n";
+            // Print everything from the file stream
+            //mfqsOutputFile << flush;
+            // Close the file
+            //mfqsOutputFile.close();
 
 
 
@@ -200,19 +259,13 @@ int main()
         // open output file stream
         std::ofstream rts_output("rts_output.txt");
 
-        processes = processCreator(fileName);
-        sort(processes.begin(), processes.end(), compareArrival);
-        RTS(processes, rts_output);
+        proccesses = processCreator(fileName);
+        RTS(proccesses, rts_output);
     }
     // Invalid input
     else {
         cout << "Incorrect input, please try again.";
         exit(1);
     }
-}
-
-
-void MFQS(int numQueues) {
-    
 }
 
