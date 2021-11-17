@@ -24,9 +24,23 @@ public:
     int processPri;
     int processDline;
     int processIO;
+
+    Process(int pid, int bst, int arr, int pri, int dline, int io) {
+        processPid = pid;
+        processBst = bst;
+        processArr = arr;
+        processPri = pri;
+        processDline = dline;
+        processIO = io;
+    }
+    Process() {
+
+    }
 };
 
-
+void RTS(vector<Process> processes, ofstream& stream) {
+    
+    }
 
 // This function is to create and return a vector of processes
 vector<Process> processCreator(string fileName) {
@@ -80,7 +94,7 @@ bool compareArrival(const Process beg, const Process end){
 int main()
 {
     
-    
+    vector<Process> proccesses;
     string programType;
     int numQueues;
     string fileName;
@@ -88,7 +102,7 @@ int main()
     int timeQuantum;
     
     std::cout << "Welcome to our Scheduling Algorithm Program\n";
-    std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS):" << endl;
+    std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:" << endl;
         
     std::cin >> programType;
     // Check number of queues
@@ -96,6 +110,10 @@ int main()
         
     // Vector queue of our processes using the Process class
     vector<Process> processesCreated;
+
+    if (programType == "q") {
+            exit(1);
+        }
 
     // MFQS
     if (programType == "a") {
@@ -179,20 +197,11 @@ int main()
         cout << "Please enter the name of the file you'd like to input:\n";
         // Grab file name
         std::cin >> fileName;
+        // open output file stream
+        std::ofstream rts_output("rts_output.txt");
 
-        // Open input file stream
-        std::ifstream in(fileName);
-        // Declare line
-        string line;
-        // While the file still has lines:
-        while (std::getline(in, line)) {
-            
-            //lineParser(line);
-            in >> pid >> bst >> arr >> pri >> dline >> IO;
-            cout << "PID = " << pid << " BST = " << bst << " arr = " << arr << " pri = " << pri << " dline = " << dline << " IO = " << IO << endl;
-            // Call RTS corresponding functions according to these variables
-            //
-        }
+        proccesses = processCreator(fileName);
+        RTS(proccesses, rts_output);
     }
     // Invalid input
     else {
@@ -206,13 +215,3 @@ void MFQS(int numQueues) {
     
 }
 
-void RTS() {
-    
-}
-
-
-void lineParser(string line) {
-
-
-
-}
