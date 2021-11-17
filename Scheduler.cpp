@@ -39,7 +39,7 @@ public:
 };
 
 void RTS(vector<Process> processes, ofstream& stream) {
-    
+   
     }
 
 // This function is to create and return a vector of processes
@@ -94,7 +94,7 @@ bool compareArrival(const Process beg, const Process end){
 int main()
 {
     
-    vector<Process> proccesses;
+    vector<Process> processes;
     string programType;
     int numQueues;
     string fileName;
@@ -200,8 +200,9 @@ int main()
         // open output file stream
         std::ofstream rts_output("rts_output.txt");
 
-        proccesses = processCreator(fileName);
-        RTS(proccesses, rts_output);
+        processes = processCreator(fileName);
+        sort(processes.begin(), processes.end(), compareArrival);
+        RTS(processes, rts_output);
     }
     // Invalid input
     else {
