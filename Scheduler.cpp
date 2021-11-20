@@ -39,8 +39,40 @@ public:
 };
 
 void RTS(vector<Process> processes, ofstream& stream) {
+    int timer = 0;
+    int number_removed = 0;
+    int executeTime = 0;
+
+    unsigned long int waitTime = 0;
+    unsigned long int turnAroundTime = 0;
+    unsigned long int completed = 0;
     
+    //comparing for the queue
+    auto cmp = [](Process a, Process b) {
+        //
+        if(a.processDline == b.processDline){
+            if(a.processPri == b.processPri){
+                //sort by lowest pid
+                return a.processPid > b.processPid;
+            }else{
+                //sort by lowest priority
+                return a.processPri > b.processPri; 
+            }
+        }
+        //sort by lowest deadline
+        return a.processDline > b.processDline; 
+    };
+    //queue
+    priority_queue<Process, vector<Process>, decltype(cmp) >  priority_queue(cmp);
+
+    while (priority_queue.size() != 0 || processes.size() != 0) {
+        while(processes.back().processArr == timer){
+            Process process = processes.back();
+            priority_queue.push(process);
+        
+        }
     }
+}
 
 
 void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream) {
@@ -63,14 +95,13 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
     const int masterTimeQuantum = timeQuantum;
     int masterTimeQuantumQueue = 0;
     int time_Quantum = masterTimeQuantum;
-    int ageInterval = ageInterval;
     int readyProcesses = 0;
 
 
     // We are going to gather fresh processes when arrival arrives
-    while (readyProcesses.size() > 0 || processes.size() > 0) {
-        while (processes.size() > 0 && processes.back().processesArr <= timer) {
-            queues[0].push(processes.back());
+    while (readyProcesses > 0 || processes.size() > 0) {
+        while (processes.size() > 0 && processes.back().processArr <= timer) {
+            //queues[0].push(processes.back());
             processes.pop_back();
             readyProcesses++;
         }
@@ -142,11 +173,15 @@ bool compareArrival(const Process beg, const Process end){
     return beg.processArr < end.processArr;
 }
 
+bool compareDeadline(const Process beg, const Process end){
+    return beg.processDline < end.processDline;
+}
+
 
 int main()
 {
-    
-    vector<Process> proccesses;
+    // Create a vector of processes
+    vector<Process> processes;
     string programType;
     int numQueues;
     string fileName;
@@ -184,9 +219,6 @@ int main()
 
         // Create and initialize vector container of queues based on user input
         vector<std::queue<int> > queues(numQueues);
-        
-        // Create a vector of processes
-        vector<Process> processes;
         
 
         // Can be accessed through queues[0], queues[1], ...,  queues[4]
@@ -259,8 +291,9 @@ int main()
         // open output file stream
         std::ofstream rts_output("rts_output.txt");
 
-        proccesses = processCreator(fileName);
-        RTS(proccesses, rts_output);
+        processes = processCreator(fileName);
+        sort(processes.begin(), processes.end(), compareDeadline);
+        RTS(processes, rts_output);
     }
     // Invalid input
     else {
