@@ -39,7 +39,22 @@ public:
 };
 
 void RTS(vector<Process> processes, fstream& stream) {
-    cout << "Starting RTS\n";
+    bool validInput = false;
+    bool isHard = false;
+    cout << "Do you want to run hard or soft RTS? Type 'a' for hard and 'b' for soft \n";
+    while (!validInput) {
+        string rtsType;
+        cin >> rtsType;
+        if (rtsType == "a") {
+            isHard = true;
+            validInput = true;
+        }else if (rtsType == "b") {
+            isHard = false;
+            validInput = true;
+        } else {
+            cout << "Invalid input: Please try again. Type 'a' for hard and 'b' for soft \n";
+        }
+    }
     int timer = 0;
     int numberRemoved = 0;
     int executeTime = 0;
@@ -51,75 +66,73 @@ void RTS(vector<Process> processes, fstream& stream) {
     
     bool haveProcess = false;
     
-    //comparing for the queue
+    // comparing for the queue
     auto cmp = [](Process a, Process b) {
-        //
         if(a.processDline == b.processDline){
             if(a.processPri == b.processPri){
-                //sort by lowest pid
+                // sort by lowest pid
                 return a.processPid > b.processPid;
             }else{
-                //sort by lowest priority
+                // sort by lowest priority
                 return a.processPri > b.processPri; 
             }
         }
-        //sort by lowest deadline
+        // sort by lowest deadline
         return a.processDline > b.processDline; 
     };
-    //queue
+    // queue
     priority_queue<Process, vector<Process>, decltype(cmp) >  priority_queue(cmp);
 
     Process process;
+
     while (priority_queue.size() != 0 || processes.size() != 0) {
         while(processes.size() != 0){
             Process process = processes.back();
             priority_queue.push(process);
-            
             processes.pop_back();
         }
 
-        if(haveProcess){
-            if(priority_queue.top().processPid != process.processPid){//are we still the top process
-                //grab the new process that has come in
-                cout << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
-                process = priority_queue.top();//grab earliest deadline
+        if(haveProcess) {
+            if(priority_queue.top().processPid != process.processPid){
+                // grab the new process that has come in
+                stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
+                process = priority_queue.top();
                 masterBurst = process.processBst;
-                executeTime=0;
+                executeTime = 0;
             }
-            priority_queue.pop();//remove
-        }else if(priority_queue.size() > 0){
+            priority_queue.pop();
+        }else if(priority_queue.size() > 0) {
             //grab the top process
             executeTime=0;
-            process = priority_queue.top(); //grab earliest deadline
+            process = priority_queue.top(); 
             masterBurst = process.processBst;
-            priority_queue.pop();//remove
+            priority_queue.pop();
             haveProcess = true;
-        }else{
-            //we don't have a process and there is nothing in the queue
+        }else {
              haveProcess = false;
         }
         
-        while(haveProcess && (timer >= process.processDline || (timer+process.processBst) > process.processDline)){
-            haveProcess=false;
-            numberRemoved++;
+        while((haveProcess && (timer + process.processBst > process.processDline && isHard))) {
             waitTime += timer - process.processArr;
+            haveProcess = false;
             turnAroundTime += (timer - process.processArr);
+            numberRemoved++; 
             
             stream << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
 
-            if(priority_queue.size() > 0){
+            if(priority_queue.size() > 0) {
                 //grab the top process
-                executeTime=0;
+                executeTime = 0;
                 process = priority_queue.top(); //grab earliest deadline
                 priority_queue.pop();//remove
                 haveProcess = true;
-            }else{
+            }else {
                 //we don't have a process and there is nothing in the queue
                 haveProcess = false;
             }
         }
         
-        if(haveProcess){
+        if(haveProcess) {
             executeTime++;
             //we have a process
             
@@ -127,18 +140,19 @@ void RTS(vector<Process> processes, fstream& stream) {
             if(process.processBst == 0){
                 //process has finished
                 completed++;
-                waitTime += (timer+1 - process.processArr) - masterBurst;
+                waitTime += (timer + 1 - process.processArr) - masterBurst;
                 turnAroundTime += (timer - process.processArr);
                     
-                stream << "Process " << process.processPid << " ran from " << (timer - executeTime)+1 << " through " << timer << " and finished\n";
+                stream << "Process " << process.processPid << " ran from " << (timer - executeTime) + 1 << " through " << timer << " and finished\n";
                 haveProcess = false;
-            }else{
-                //it didn't finish its burst so add it back to the queue
+            }else {
+                // burst did not finish, requeue
                 priority_queue.push(process);
             } 
         }
         timer++;
     }
+    stream << "\n";
     stream << "Total wait time: " << waitTime << " clock ticks\n";
     stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
     stream << "Total completed: " << completed << "\n";
