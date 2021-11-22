@@ -6,6 +6,8 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <math.h>
+
 
 using namespace std;
 
@@ -24,6 +26,12 @@ public:
     int processPri;
     int processDline;
     int processIO;
+    
+    int master_burst;
+    int master_priority;
+    int age;
+    int waitingTime;
+    int queue_arrival;
 
     Process(int pid, int bst, int arr, int pri, int dline, int io) {
         processPid = pid;
@@ -32,6 +40,13 @@ public:
         processPri = pri;
         processDline = dline;
         processIO = io;
+        
+        
+        master_burst = bst;
+        master_priority = pri;
+        age = 0;
+        waitingTime = 0;
+        queue_arrival = 0;
     }
     Process() {
 
@@ -159,18 +174,50 @@ void RTS(vector<Process> processes, fstream& stream) {
 }
 
 
+void age_queue(vector<queue<Process> > queues, int ageInterval, int ageAmount) {
+    int sizeOfQueue = queues[queues.size()-1].size();
+
+    // Loop through queue to age
+    while(sizeOfQueue > 0) {
+        // Grab last queue from all queues
+        Process frontProcess = queues[queues.size()-1].front();
+        queues[queues.size()-1].pop();
+        frontProcess.age += ageAmount;
+
+        // if the age is greater than the interval, we will age up
+        if(frontProcess.age >= ageInterval) {
+            frontProcess.age = 0; // make age 0
+
+            // add it to the queue that is above
+            queues[queues.size()-2].push(frontProcess);
+
+            // if we want to output to a file
+            //if (fileOutput) {
+            //    fs << "The process " << frontProcess.processPID << " has aged and was promoted to queue " << queues.size()-2 << "\n";
+            //}
+        }
+        else {
+            queues[queues.size()-1].push(frontProcess);
+        }
+
+        sizeOfQueue--;
+    }
+}
+
+
 void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream) {
     // queue marker
     int whichQueue = 0;
+    
 
-    vector<queue<Process*> > queues;
+    vector<queue<Process> > queues;
     for (int i = 0; i < numQueues; i++) {
-        queue<Process*> queue;
+        queue<Process> queue;
         queues.push_back(queue);
     }
 
 
-    Process* processor = NULL;
+    Process process;
 
     unsigned long long int masterWaitTime = 0;
     unsigned long long int masterComplete = 0;
@@ -179,13 +226,15 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
     const int masterTimeQuantum = timeQuantum;
     int masterTimeQuantumQueue = 0;
     int time_Quantum = masterTimeQuantum;
+    //int ageInterval = ageInterval;
     int readyProcesses = 0;
 
 
     // We are going to gather fresh processes when arrival arrives
     while (readyProcesses > 0 || processes.size() > 0) {
+        //cout << "\nCurrent PID = " << process.processPid << "\n";
         while (processes.size() > 0 && processes.back().processArr <= timer) {
-            //queues[0].push(processes.back());
+            queues[0].push(processes.back());
             processes.pop_back();
             readyProcesses++;
         }
@@ -196,10 +245,107 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
         while(whichQueue < queues.size() && queues[whichQueue].size() == 0) {
             whichQueue++;
         }
+
+        // Check to see if there is a process in a queue
+        if(whichQueue < queues.size()) {
+            // grab first process
+            process = queues[whichQueue].front();
+            // Test print out for terminal read out
+            //if (printOut) {
+                //cout << "PID Selected: " << processes.processPID << "\n";
+            //}
+            // Resetting time quantum for new process
+            time_Quantum = pow(2, whichQueue) * masterTimeQuantum;
+            masterTimeQuantumQueue = time_Quantum;
+        }
+
+
+        else {
+            // none found
+
+            timer = processes.back().processArr;
+            // If we want to output to the file
+            //if (fileOutput) {
+            //    fs << timer << "\n";
+            //}
+        }
+
+        // If this is the last queue, we will not do the time quantum
+        if (whichQueue + 1 == queues.size()) {
+            // age
+            int ageAmount = process.processBst;
+            timer += ageAmount; // elapsed
+
+            masterComplete++;
+            process.waitingTime = (timer - process.processArr) - process.master_burst;
+            masterTurnAround += process.waitingTime + process.master_burst;
+            // process is dead, add the wait time
+            masterWaitTime += process.waitingTime;
+
+            stream << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
+
+            // 
+            queues[queues.size()-1].pop();
+            //delete process;
+            //process = NULL;
+            readyProcesses--;
+            
+
+            // age it all
+            age_queue(queues, ageInterval, ageAmount);
+
+        }
+
+        // all the queues before the last
+        else if(whichQueue < queues.size()) {
+            // time quantum
+
+            int ageAmount = 0;
+            
+            if (process.processBst <= time_Quantum) {
+                ageAmount = process.processBst;
+                
+                age_queue(queues, ageInterval, ageAmount); // age the last queue
+                
+                masterComplete++;
+                process.waitingTime = ((ageAmount + timer) - process.processArr) - process.master_burst;
+                masterTurnAround += process.waitingTime + process.master_burst;
+                masterWaitTime += process.waitingTime;
+                
+                stream << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+                
+                queues[whichQueue].pop();
+                //delete process;
+                //process = NULL;
+                readyProcesses--;
+            } else {
+                ageAmount = time_Quantum;
+                
+                process.processBst -= ageAmount;
+                
+                age_queue(queues, ageInterval, ageAmount);
+                
+                // demoting process
+                Process proc = process;
+                queues[whichQueue].pop();
+                queues[whichQueue + 1].push(proc); // bring process down one queue
+                stream << "Process " << proc.processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
+                " and has been demoted to queue " << whichQueue+1 << "\n";
+                
+            }
+            timer += ageAmount;
+
+        }
+
+
     }
 
-
-
+    stream << "\nStats:\n";
+    stream << "Total Wait Time: " << masterWaitTime << "\n";
+    stream << "Total Turnaroud time: " << masterTurnAround << "\n";
+    stream << "Total completed: " << masterComplete << "\n";
+    stream << "Average Turnaround time: " << masterTurnAround/masterComplete << "\n";
+    stream << "Average wait time: " << masterWaitTime/masterComplete << "\n";
 
 }
 
@@ -259,23 +405,21 @@ bool compareDeadline(const Process beg, const Process end){
 
 int main()
 {
-    // Create a vector of processes
-    vector<Process> processes;
+    
+    vector<Process> proccesses;
     string programType;
     int numQueues;
     string fileName;
     int ageInterval;
     int timeQuantum;
-    string mfqsOutputFileName = "MFQSOutput.txt";
-
-    fstream mfqsOutputFile;
+    
     
     std::cout << "Welcome to our Scheduling Algorithm Program\n";
-    std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:" << endl;
+    std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:\n";
         
     std::cin >> programType;
     // Check number of queues
-    cout << "You entered: " << programType << endl;
+    cout << "You entered: " << programType << "\n";
         
     // Vector queue of our processes using the Process class
     vector<Process> processesCreated;
@@ -289,15 +433,18 @@ int main()
         // declare input string
         string input = "";
         // Program response
-        cout << "You chose the MFQS" << endl;
+        cout << "You chose the MFQS" << "\n";
         // Prompt and input number of queues
-        std::cout << "Select a number of queues in between 1 and 5:" << endl;
+        std::cout << "Select a number of queues in between 1 and 5:" << "\n";
         cin >> numQueues;
         // Program response
-        cout << "You entered: " << numQueues << endl;
+        cout << "You entered: " << numQueues << "\n";
 
         // Create and initialize vector container of queues based on user input
         vector<std::queue<int> > queues(numQueues);
+        
+        // Create a vector of processes
+        vector<Process> processes;
         
 
         // Can be accessed through queues[0], queues[1], ...,  queues[4]
@@ -313,14 +460,14 @@ int main()
             // Add all processes to queue of processes from the returned queue of processes
             processes = processCreator(fileName);
 
-            cout << "processes size: = " << processes.size();
+            //cout << "processes size: = " << processes.size();
             //cout << "created processes size: = " << processesCreated.size();
 
-            if(processes.size() > 0) {
+            //if(processes.size() > 0) {
                 //for(int i = 0; i < createdProcesses.size(); i++) {
                     //Process OldProc = *
                 //}
-            }
+            //}
                 
             //Process proc = processes.begin();
             
@@ -330,26 +477,29 @@ int main()
             cout << "Grabbing MFQS Information:\n";
             cout << "What is the age interval?:\n";
             cin >> ageInterval;
-            cout << "\nWhat is the Time Quantum?:\n";
+            cout << "What is the Time Quantum?:\n";
             cin >> timeQuantum;
-            
+            cout << "\n";
+
             // size of processes array
             //int size = processes.size();
             //std::cout << "size = " << size << "\n";
-            for (int i = 0; i <= processes.size() - 1; i++) {
-                cout << "PID = " << processes[i].processPid << "   Arrival: " << processes[i].processArr << "\n";
-            }
+            //for (int i = 0; i <= processes.size() - 1; i++) {
+            //    cout << "PID = " << processes[i].processPid << "   Arrival: " << processes[i].processArr << "\n";
+            //}
 
-            //mfqsOutputFile.open(mfqsOutputFileName, std::fstream::out || std::fstream::trunc);
+            string mfqsOutputFileName = "MFQSOutput.txt";
+            fstream mfqsOutputFile;
+
+            mfqsOutputFile.open("mfqsOutput.txt", std::fstream::out | std::fstream::trunc);
             // Call MFQS function
-            //MFQS(processes, int numQueues, int ageInterval, int timeQuantum, mfqsOutputFile);
-            //void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream) {
-            //mfqsOutputFile << "\n";
-            //cout << "Reading the file output: " << mfqsOutputFileName << "\n";
+            MFQS(processes, numQueues, ageInterval, timeQuantum, mfqsOutputFile);
+            mfqsOutputFile << "\n";
+            cout << "Reading the file output: " << mfqsOutputFileName << "\n";
             // Print everything from the file stream
-            //mfqsOutputFile << flush;
+            mfqsOutputFile << flush;
             // Close the file
-            //mfqsOutputFile.close();
+            mfqsOutputFile.close();
 
 
 
