@@ -57,13 +57,12 @@ void RTS(vector<Process> processes, fstream& stream) {
         }
     }
     int timer = 0;
-    int numberRemoved = 0;
     int executeTime = 0;
     int masterBurst = 0;
 
     unsigned long int waitTime = 0;
     unsigned long int turnAroundTime = 0;
-    unsigned long int completed = 0;
+    unsigned long int processAmount = processes.size();
     
     bool haveProcess = false;
     
@@ -113,7 +112,6 @@ void RTS(vector<Process> processes, fstream& stream) {
             waitTime += timer - process.processArr;
             haveProcess = false;
             turnAroundTime += (timer - process.processArr);
-            numberRemoved++; 
             failedProcess = true;
 
             stream << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
@@ -140,7 +138,6 @@ void RTS(vector<Process> processes, fstream& stream) {
             process.processBst--;
             if(process.processBst == 0){
                 //process has finished
-                completed++;
                 waitTime += (timer + 1 - process.processArr) - masterBurst;
                 turnAroundTime += (timer - process.processArr);
                     
@@ -156,10 +153,9 @@ void RTS(vector<Process> processes, fstream& stream) {
     stream << "\n";
     stream << "Total wait time: " << waitTime << " clock ticks\n";
     stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
-    stream << "Total completed: " << completed << "\n";
-    stream << "Total removed: " << numberRemoved << "\n";
-    stream << "Average turn around time: " << ((float)turnAroundTime)/((float)(completed + numberRemoved)) << " clock ticks\n";
-    stream << "Average wait time: " << ((float)waitTime)/((float)(completed + numberRemoved)) << " clock ticks\n";
+    stream << "Total processes: " << processAmount << " clock ticks\n";
+    stream << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+    stream << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
 }
 
 
