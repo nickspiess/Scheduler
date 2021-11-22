@@ -41,6 +41,7 @@ public:
 void RTS(vector<Process> processes, fstream& stream) {
     bool validInput = false;
     bool isHard = false;
+    bool failedProcess = false;
     cout << "Do you want to run hard or soft RTS? Type 'a' for hard and 'b' for soft \n";
     while (!validInput) {
         string rtsType;
@@ -68,70 +69,70 @@ void RTS(vector<Process> processes, fstream& stream) {
     
     // comparing for the queue
     auto cmp = [](Process a, Process b) {
-        if(a.processDline == b.processDline){
-            if(a.processPri == b.processPri){
-                // sort by lowest pid
-                return a.processPid > b.processPid;
-            }else{
-                // sort by lowest priority
-                return a.processPri > b.processPri; 
-            }
+        if(a.processDline != b.processDline) {
+            return a.processDline > b.processDline; 
+        }else if(a.processArr != b.processArr) {
+            return a.processArr > b.processArr; 
+        }else {
+            return a.processPid > b.processPid;
         }
-        // sort by lowest deadline
-        return a.processDline > b.processDline; 
     };
     // queue
-    priority_queue<Process, vector<Process>, decltype(cmp) >  priority_queue(cmp);
+    priority_queue<Process, vector<Process>, decltype(cmp) >  processQueue(cmp);
 
     Process process;
 
-    while (priority_queue.size() != 0 || processes.size() != 0) {
+    while (processQueue.size() != 0 || processes.size() != 0) {
         while(processes.size() != 0){
             Process process = processes.back();
-            priority_queue.push(process);
+            processQueue.push(process);
             processes.pop_back();
         }
 
         if(haveProcess) {
-            if(priority_queue.top().processPid != process.processPid){
+            if(processQueue.top().processPid != process.processPid){
                 // grab the new process that has come in
                 stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
-                process = priority_queue.top();
+                process = processQueue.top();
                 masterBurst = process.processBst;
                 executeTime = 0;
             }
-            priority_queue.pop();
-        }else if(priority_queue.size() > 0) {
+            processQueue.pop();
+        }else if(processQueue.size() > 0) {
             //grab the top process
             executeTime=0;
-            process = priority_queue.top(); 
+            process = processQueue.top(); 
             masterBurst = process.processBst;
-            priority_queue.pop();
+            processQueue.pop();
             haveProcess = true;
         }else {
              haveProcess = false;
         }
         
-        while((haveProcess && (timer + process.processBst > process.processDline && isHard))) {
+        while(haveProcess && (timer+process.processBst) > process.processDline) {
             waitTime += timer - process.processArr;
             haveProcess = false;
             turnAroundTime += (timer - process.processArr);
             numberRemoved++; 
-            
+            failedProcess = true;
+
             stream << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
 
-            if(priority_queue.size() > 0) {
+            if(processQueue.size() > 0) {
                 //grab the top process
                 executeTime = 0;
-                process = priority_queue.top(); //grab earliest deadline
-                priority_queue.pop();//remove
+                process = processQueue.top(); //grab earliest deadline
+                processQueue.pop();//remove
                 haveProcess = true;
             }else {
                 //we don't have a process and there is nothing in the queue
                 haveProcess = false;
             }
         }
-        
+        if (isHard && failedProcess) {
+            stream << "Since RTS is hard and a process failed, exiting RTS\n";
+            break;
+        }
         if(haveProcess) {
             executeTime++;
             //we have a process
@@ -147,7 +148,7 @@ void RTS(vector<Process> processes, fstream& stream) {
                 haveProcess = false;
             }else {
                 // burst did not finish, requeue
-                priority_queue.push(process);
+                processQueue.push(process);
             } 
         }
         timer++;
