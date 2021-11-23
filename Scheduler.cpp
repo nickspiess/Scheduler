@@ -53,7 +53,7 @@ public:
     }
 };
 
-void RTS(vector<Process> processes, fstream& stream, int terminalOutput) {
+void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
     bool validInput = false;
     bool isHard = false;
     bool failedProcess = false;
@@ -98,8 +98,9 @@ void RTS(vector<Process> processes, fstream& stream, int terminalOutput) {
 
     while (processQueue.size() != 0 || processes.size() != 0) {
         while(processes.size() != 0){
-            Process process = processes.back();
-            processQueue.push(process);
+            Process* process = processes.back();
+            processQueue.push(*process);
+            delete process;
             processes.pop_back();
         }
 
@@ -207,19 +208,19 @@ void RTS(vector<Process> processes, fstream& stream, int terminalOutput) {
 }
 
 
-void age_queue(vector<queue<Process> > queues, int ageInterval, int ageAmount) {
+void age_queue(vector<queue<Process*> > queues, int ageInterval, int ageAmount) {
     int sizeOfQueue = queues[queues.size()-1].size();
 
     // Loop through queue to age
     while(sizeOfQueue > 0) {
         // Grab last queue from all queues
-        Process frontProcess = queues[queues.size()-1].front();
+        Process* frontProcess = queues[queues.size()-1].front();
         queues[queues.size()-1].pop();
-        frontProcess.age += ageAmount;
+        frontProcess->age += ageAmount;
 
         // if the age is greater than the interval, we will age up
-        if(frontProcess.age >= ageInterval) {
-            frontProcess.age = 0; // make age 0
+        if(frontProcess->age >= ageInterval) {
+            frontProcess->age = 0; // make age 0
 
             // add it to the queue that is above
             queues[queues.size()-2].push(frontProcess);
@@ -238,19 +239,19 @@ void age_queue(vector<queue<Process> > queues, int ageInterval, int ageAmount) {
 }
 
 
-void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream, int terminalOutput, int runIO) {
+void MFQS(vector<Process*> processes, int numQueues, int ageInterval, int timeQuantum, fstream& stream, int terminalOutput, int runIO) {
     // queue marker
     int whichQueue = 0;
     
 
-    vector<queue<Process> > queues;
+    vector<queue<Process*> > queues;
     for (int i = 0; i < numQueues; i++) {
-        queue<Process> queue;
+        queue<Process*> queue;
         queues.push_back(queue);
     }
 
 
-    Process process;
+    Process* process;
 
     unsigned long long int masterWaitTime = 0;
     unsigned long long int masterComplete = 0;
@@ -260,17 +261,24 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
     int masterTimeQuantumQueue = 0;
     int time_Quantum = masterTimeQuantum;
     int readyProcesses = 0;
+    int readyIO = 0;
 
 
     // We are going to gather fresh processes when arrival arrives
     while (readyProcesses > 0 || processes.size() > 0) {
 
 
-        while (processes.size() > 0 && processes.back().processArr <= timer) {
-            queues[0].push(processes.back());
-            processes.pop_back();
-            readyProcesses++;
+        while (processes.size() > 0 && processes.back()->processArr <= timer) {
+
+                queues[0].push(processes.back());
+                processes.pop_back();
+                readyProcesses++;
+            
         }
+    }
+    
+
+
 
 
         whichQueue = 0;
@@ -298,7 +306,7 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
         else {
             // none found
 
-            timer = processes.back().processArr;
+            timer = processes.back()->processArr;
             // If we want to output to the file
             //if (fileOutput) {
             //    fs << timer << "\n";
@@ -308,19 +316,19 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
         // If this is the last queue, we will not do the time quantum
         if (whichQueue + 1 == queues.size()) {
             // age
-            int ageAmount = process.processBst;
+            int ageAmount = process->processBst;
             timer += ageAmount; // elapsed
 
             masterComplete++;
-            process.waitingTime = (timer - process.processArr) - process.master_burst;
-            masterTurnAround += process.waitingTime + process.master_burst;
+            process->waitingTime = (timer - process->processArr) - process->master_burst;
+            masterTurnAround += process->waitingTime + process->master_burst;
             // process is dead, add the wait time
-            masterWaitTime += process.waitingTime;
+            masterWaitTime += process->waitingTime;
 
             if (terminalOutput) {
-                cout << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
+                cout << "The process " << process->processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
             } else {
-                stream << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
+                stream << "The process " << process->processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
             }
             // 
             queues[queues.size()-1].pop();
@@ -340,22 +348,22 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
 
             int ageAmount = 0;
             
-            if (process.processBst <= time_Quantum) {
-                ageAmount = process.processBst;
+            if (process->processBst <= time_Quantum) {
+                ageAmount = process->processBst;
                 
                 age_queue(queues, ageInterval, ageAmount); // age the last queue
                 
                 masterComplete++;
-                process.waitingTime = ((ageAmount + timer) - process.processArr) - process.master_burst;
-                masterTurnAround += process.waitingTime + process.master_burst;
-                masterWaitTime += process.waitingTime;
+                process->waitingTime = ((ageAmount + timer) - process->processArr) - process->master_burst;
+                masterTurnAround += process->waitingTime + process->master_burst;
+                masterWaitTime += process->waitingTime;
                 
 
                 if (terminalOutput) {
-                    cout << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+                    cout << "Process " << process->processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
                 }
                 else {
-                    stream << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+                    stream << "Process " << process->processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
                 }
                 
                 queues[whichQueue].pop();
@@ -365,21 +373,21 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
             } else {
                 ageAmount = time_Quantum;
                 
-                process.processBst -= ageAmount;
+                process->processBst -= ageAmount;
                 
                 age_queue(queues, ageInterval, ageAmount);
                 
                 // demoting process
-                Process proc = process;
+                Process* proc = process;
                 queues[whichQueue].pop();
                 queues[whichQueue + 1].push(proc); // bring process down one queue
                 
                 if (terminalOutput) {
-                    cout << "Process " << proc.processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
+                    cout << "Process " << proc->processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
                     " and has been demoted to queue " << whichQueue+1 << "\n";
                 }
                 else {
-                stream << "Process " << proc.processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
+                stream << "Process " << proc->processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
                 " and has been demoted to queue " << whichQueue+1 << "\n";
                 }
             }
@@ -416,9 +424,9 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
 
 
 // This function is to create and return a vector of processes
-vector<Process> processCreator(string fileName) {
+vector<Process*> processCreator(string fileName) {
     // Create a vector of all our processes
-    vector<Process> processes;
+    vector<Process*> processes;
 
     // Open input file stream
     std::ifstream in(fileName);
@@ -430,16 +438,11 @@ vector<Process> processCreator(string fileName) {
         // Grabbing the input from the line
         in >> pid >> bst >> arr >> pri >> dline >> IO;
 
+
         // Sanitizing input
         if (pid >= 0 && bst >= 0 && arr >= 0 && pri >= 0 && dline >= 0 && IO >= 0) {
             // Creating a process
-            Process process;
-            process.processPid = pid;
-            process.processBst = bst;
-            process.processArr = arr;
-            process.processPri = pri;
-            process.processDline = dline;
-            process.processIO = IO;
+            Process* process = new Process(pid, bst, arr, pri, dline, IO);
             // Add process to our vector queue
             processes.push_back(process);
         }
@@ -450,19 +453,19 @@ vector<Process> processCreator(string fileName) {
 }
 
 
-bool compareArrival(const Process beg, const Process end){
-    return beg.processArr < end.processArr;
+bool compareArrival(const Process* beg, const Process* end){
+    return beg->processArr < end->processArr;
 }
 
-bool compareDeadline(const Process beg, const Process end){
-    return beg.processDline < end.processDline;
+bool compareDeadline(const Process* beg, const Process* end){
+    return beg->processDline < end->processDline;
 }
 
 
 int main()
 {
     
-    vector<Process> processes;
+    vector<Process*> processes;
     string programType;
     int numQueues;
     string fileName;
@@ -479,7 +482,7 @@ int main()
     //cout << "You entered: " << programType << "\n";
         
     // Vector queue of our processes using the Process class
-    vector<Process> processesCreated;
+    vector<Process*> processesCreated;
 
     if (programType == "q") {
             exit(1);
@@ -501,7 +504,7 @@ int main()
         vector<std::queue<int> > queues(numQueues);
         
         // Create a vector of processes
-        vector<Process> processes;
+        vector<Process*> processes;
         
 
         // Can be accessed through queues[0], queues[1], ...,  queues[4]
