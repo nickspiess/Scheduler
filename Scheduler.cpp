@@ -53,7 +53,7 @@ public:
     }
 };
 
-void RTS(vector<Process> processes, fstream& stream) {
+void RTS(vector<Process> processes, fstream& stream, int terminalOutput) {
     bool validInput = false;
     bool isHard = false;
     bool failedProcess = false;
@@ -106,7 +106,12 @@ void RTS(vector<Process> processes, fstream& stream) {
         if(haveProcess) {
             if(processQueue.top().processPid != process.processPid){
                 // grab the new process that has come in
-                stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
+                if (terminalOutput) {
+                    cout << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
+                }
+                else {
+                    stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
+                }
                 process = processQueue.top();
                 masterBurst = process.processBst;
                 executeTime = 0;
@@ -128,8 +133,12 @@ void RTS(vector<Process> processes, fstream& stream) {
             haveProcess = false;
             turnAroundTime += (timer - process.processArr);
             failedProcess = true;
-
-            stream << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
+            if (terminalOutput) {
+                    cout << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
+            }
+            else {
+                    stream << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
+            }
 
             if(processQueue.size() > 0) {
                 //grab the top process
@@ -143,7 +152,13 @@ void RTS(vector<Process> processes, fstream& stream) {
             }
         }
         if (isHard && failedProcess) {
-            stream << "Since RTS is hard and a process failed, exiting RTS\n";
+            if (terminalOutput) {
+                cout << "Since RTS is hard and a process failed, exiting RTS\n";
+
+            }
+            else {
+                stream << "Since RTS is hard and a process failed, exiting RTS\n";
+            }
             break;
         }
         if(haveProcess) {
@@ -155,8 +170,15 @@ void RTS(vector<Process> processes, fstream& stream) {
                 //process has finished
                 waitTime += (timer + 1 - process.processArr) - masterBurst;
                 turnAroundTime += (timer - process.processArr);
-                    
-                stream << "Process " << process.processPid << " ran from " << (timer - executeTime) + 1 << " through " << timer << " and finished\n";
+                
+                if (terminalOutput) {
+                    cout << "Process " << process.processPid << " ran from " << (timer - executeTime) + 1 << " through " << timer << " and finished\n";
+
+                }
+                else {
+                    stream << "Process " << process.processPid << " ran from " << (timer - executeTime) + 1 << " through " << timer << " and finished\n";
+
+                }
                 haveProcess = false;
             }else {
                 // burst did not finish, requeue
@@ -165,12 +187,23 @@ void RTS(vector<Process> processes, fstream& stream) {
         }
         timer++;
     }
-    stream << "\n";
-    stream << "Total wait time: " << waitTime << " clock ticks\n";
-    stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
-    stream << "Total processes: " << processAmount << " clock ticks\n";
-    stream << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
-    stream << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+
+    if (terminalOutput) {
+        cout << "\n";
+        cout << "Total wait time: " << waitTime << " clock ticks\n";
+        cout << "Total turn around time: " << turnAroundTime << " clock ticks\n";
+        cout << "Total processes: " << processAmount << " clock ticks\n";
+        cout << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+        cout << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+    }
+    else {
+        stream << "\n";
+        stream << "Total wait time: " << waitTime << " clock ticks\n";
+        stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
+        stream << "Total processes: " << processAmount << " clock ticks\n";
+        stream << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+        stream << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+    }
 }
 
 
@@ -252,9 +285,9 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
             process = queues[whichQueue].front();
 
             // Test print out for terminal read out
-            if (terminalOutput) {
-                cout << "PID Selected: " << process.processPid << "\n";
-            }
+            //if (terminalOutput) {
+            //    cout << "PID Selected: " << process.processPid << "\n";
+            //}
             
             // Resetting time quantum for new process
             time_Quantum = pow(2, whichQueue) * masterTimeQuantum;
@@ -284,8 +317,11 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
             // process is dead, add the wait time
             masterWaitTime += process.waitingTime;
 
-            stream << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
-
+            if (terminalOutput) {
+                cout << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
+            } else {
+                stream << "The process " << process.processPid << " started at " << timer -  (masterTimeQuantumQueue - ageAmount) << " and ended at " << timer-1 << " in queue " << whichQueue << " and finished\n";
+            }
             // 
             queues[queues.size()-1].pop();
             //delete process;
@@ -314,7 +350,13 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
                 masterTurnAround += process.waitingTime + process.master_burst;
                 masterWaitTime += process.waitingTime;
                 
-                stream << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+
+                if (terminalOutput) {
+                    cout << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+                }
+                else {
+                    stream << "Process " << process.processPid << " ran form " << timer << " through " << (ageAmount + timer)-1 << " in queue " << whichQueue << " and has finished\n";
+                }
                 
                 queues[whichQueue].pop();
                 //delete process;
@@ -331,9 +373,15 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
                 Process proc = process;
                 queues[whichQueue].pop();
                 queues[whichQueue + 1].push(proc); // bring process down one queue
+                
+                if (terminalOutput) {
+                    cout << "Process " << proc.processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
+                    " and has been demoted to queue " << whichQueue+1 << "\n";
+                }
+                else {
                 stream << "Process " << proc.processPid << " ran from " << (ageAmount+timer)-masterTimeQuantumQueue << " through " << (ageAmount+timer)-1 << " in queue " << whichQueue << 
                 " and has been demoted to queue " << whichQueue+1 << "\n";
-                
+                }
             }
             timer += ageAmount;
 
@@ -341,15 +389,28 @@ void MFQS(vector<Process> processes, int numQueues, int ageInterval, int timeQua
         if (terminalOutput) {
             cout << timer << "\n";
         }
+        else {
+            stream << timer << "\n";
+        }
 
     }
 
-    stream << "\nStats:\n";
-    stream << "Total Wait Time: " << masterWaitTime << " clock ticks\n";
-    stream << "Total Turnaroud time: " << masterTurnAround  << " clock ticks\n";
-    stream << "Total completed: " << masterComplete << " clock ticks\n";
-    stream << "Average Turnaround time: " << masterTurnAround/masterComplete << " clock ticks\n";
-    stream << "Average wait time: " << masterWaitTime/masterComplete << " clock ticks\n";
+    if (terminalOutput) {
+        cout << "\nStats:\n";
+        cout << "Total Wait Time: " << masterWaitTime << " clock ticks\n";
+        cout << "Total Turnaroud time: " << masterTurnAround  << " clock ticks\n";
+        cout << "Total completed: " << masterComplete << " clock ticks\n";
+        cout << "Average Turnaround time: " << masterTurnAround/masterComplete << " clock ticks\n";
+        cout << "Average wait time: " << masterWaitTime/masterComplete << " clock ticks\n";
+    }
+    else {
+        stream << "\nStats:\n";
+        stream << "Total Wait Time: " << masterWaitTime << " clock ticks\n";
+        stream << "Total Turnaroud time: " << masterTurnAround  << " clock ticks\n";
+        stream << "Total completed: " << masterComplete << " clock ticks\n";
+        stream << "Average Turnaround time: " << masterTurnAround/masterComplete << " clock ticks\n";
+        stream << "Average wait time: " << masterWaitTime/masterComplete << " clock ticks\n";
+    }
 
 }
 
@@ -383,9 +444,7 @@ vector<Process> processCreator(string fileName) {
             processes.push_back(process);
         }
 
-        // We will sort our processes
-        //cout << "PID = " << one.processPid << " BST = " << one.processBst << " arr = " << one.processArr << " pri = " << one.processPri << " dline = " << one.processDline << " IO = " << one.processIO << endl;
-            }
+       }
 
     return processes;
 }
@@ -409,6 +468,7 @@ int main()
     string fileName;
     int ageInterval;
     int timeQuantum;
+    int terminalOutput;
     
     
     std::cout << "Welcome to our Scheduling Algorithm Program\n";
@@ -456,23 +516,12 @@ int main()
 
             // Add all processes to queue of processes from the returned queue of processes
             processes = processCreator(fileName);
-
-            //cout << "processes size: = " << processes.size();
-            //cout << "created processes size: = " << processesCreated.size();
-
-            //if(processes.size() > 0) {
-                //for(int i = 0; i < createdProcesses.size(); i++) {
-                    //Process OldProc = *
-                //}
-            //}
                 
-            //Process proc = processes.begin();
             
             // We now will sort our processes baseed on arrival time.
             sort(processes.begin(), processes.end(), compareArrival);
 
             int runIO;
-            int terminalOutput;
 
             cout << "Grabbing MFQS Information:\n";
             cout << "What is the age interval?:\n";
@@ -482,20 +531,28 @@ int main()
             cout << "\n";
             //cout << "Do you want to run IO? (0 = No or 1 = Yes):\n";
             //cin >> runIO;
-            //cout << "Do you want outputs displayed in the terminal? (0 = No or 1 = Yes):\n";
-            //cin >> terminalOutput;
-
-            // size of processes array
-            //int size = processes.size();
-            //std::cout << "size = " << size << "\n";
-            //for (int i = 0; i <= processes.size() - 1; i++) {
-            //    cout << "PID = " << processes[i].processPid << "   Arrival: " << processes[i].processArr << "\n";
-            //}
+            // Terminal output ?
+            while (terminalOutput != 0 || terminalOutput != 1) {
+                cout << "Do you want outputs displayed in the terminal or in a file? (0 = File or 1 = Terminal):\n";
+                std::cin >> terminalOutput;
+                if (terminalOutput == 1) {
+                    break;
+                }
+                if (terminalOutput == 0) {
+                    break;
+                }
+            }
 
             string mfqsOutputFileName = "MFQSOutput.txt";
             fstream mfqsOutputFile;
 
             mfqsOutputFile.open("mfqsOutput.txt", std::fstream::out | std::fstream::trunc);
+            if (terminalOutput == 0) {
+                cout << "Read output in file: " << mfqsOutputFileName << "\n";
+            }
+            else {
+                cout << "Read output in terminal:\n";
+            }
             // Call MFQS function
             MFQS(processes, numQueues, ageInterval, timeQuantum, mfqsOutputFile, terminalOutput, runIO);
             mfqsOutputFile << "\n";
@@ -504,8 +561,6 @@ int main()
             mfqsOutputFile << flush;
             // Close the file
             mfqsOutputFile.close();
-
-
 
         }
         // incorrect # of queues, exit
@@ -521,14 +576,29 @@ int main()
         cout << "Please enter the name of the file you'd like to input:\n";
         // Grab file name
         std::cin >> fileName;
+        while (terminalOutput != 0 || terminalOutput != 1) {
+            cout << "Do you want outputs displayed in the terminal or in a file? (0 = File or 1 = Terminal):\n";
+            std::cin >> terminalOutput;
+            if (terminalOutput == 1) {
+                break;
+            }
+            if (terminalOutput == 0) {
+                break;
+            }
+        }
         // open output file stream
         string rts_output_fileName = "rts_output.txt";
         fstream rts_output_file;
         rts_output_file.open("rts_output.txt", std::fstream::out  | std::fstream::trunc );
         processes = processCreator(fileName);
         sort(processes.begin(), processes.end(), compareDeadline);
-        RTS(processes, rts_output_file);
-        cout << "read output in file: " << rts_output_fileName << "\n";
+        RTS(processes, rts_output_file, terminalOutput);
+        if (terminalOutput == 0) {
+            cout << "Read output in file: " << rts_output_fileName << "\n";
+        }
+        else {
+            cout << "Read output in terminal\n";
+        }
         rts_output_file << "\n";
         rts_output_file << flush; // print everything in the buffer
         rts_output_file.close();
