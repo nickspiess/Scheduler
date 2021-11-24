@@ -73,7 +73,7 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
     }
     int timer = 0;
     int executeTime = 0;
-    int originalBurst = 0;
+    int masterBurst = 0;
 
     unsigned long int waitTime = 0;
     unsigned long int turnAroundTime = 0;
@@ -106,6 +106,7 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
 
         if(haveProcess) {
             if(processQueue.top().processPid != process.processPid){
+                // grab the new process that has come in
                 if (terminalOutput) {
                     cout << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
                 }
@@ -113,14 +114,15 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
                     stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
                 }
                 process = processQueue.top();
-                originalBurst = process.processBst;
+                masterBurst = process.processBst;
                 executeTime = 0;
             }
             processQueue.pop();
         }else if(processQueue.size() > 0) {
+            //grab the top process
             executeTime=0;
             process = processQueue.top(); 
-            originalBurst = process.processBst;
+            masterBurst = process.processBst;
             processQueue.pop();
             haveProcess = true;
         }else {
@@ -129,10 +131,9 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
         
         while(haveProcess && (timer+process.processBst) > process.processDline) {
             waitTime += timer - process.processArr;
-            turnAroundTime += timer - process.processArr;
             haveProcess = false;
+            turnAroundTime += (timer - process.processArr);
             failedProcess = true;
-            processAmount--;
             if (terminalOutput) {
                     cout << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
             }
@@ -141,11 +142,13 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
             }
 
             if(processQueue.size() > 0) {
+                //grab the top process
                 executeTime = 0;
-                process = processQueue.top();
-                processQueue.pop();
+                process = processQueue.top(); //grab earliest deadline
+                processQueue.pop();//remove
                 haveProcess = true;
             }else {
+                //we don't have a process and there is nothing in the queue
                 haveProcess = false;
             }
         }
@@ -166,7 +169,7 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
             process.processBst--;
             if(process.processBst == 0){
                 //process has finished
-                waitTime += (timer + 1 - process.processArr) - originalBurst;
+                waitTime += (timer + 1 - process.processArr) - masterBurst;
                 turnAroundTime += (timer - process.processArr);
                 
                 if (terminalOutput) {
@@ -188,20 +191,19 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
 
     if (terminalOutput) {
         cout << "\n";
-        cout << "The total waiting time is " << waitTime << " clock ticks\n";
-        cout << "The total turn around time is " << turnAroundTime << " clock ticks\n";
-        cout << "The total processes ran is " << processAmount << " processes\n";
-        cout << "The average wait time is " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
-        cout << "The average turn around time is " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+        cout << "Total wait time: " << waitTime << " clock ticks\n";
+        cout << "Total turn around time: " << turnAroundTime << " clock ticks\n";
+        cout << "Total processes: " << processAmount << " clock ticks\n";
+        cout << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+        cout << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
     }
     else {
         stream << "\n";
-        stream << "The total waiting time is " << waitTime << " clock ticks\n";
-        stream << "The total turn around time is " << turnAroundTime << " clock ticks\n";
-        stream << "The total processes ran is " << processAmount << " processes ticks\n";
-        stream << "The average wait time is " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
-        stream << "The average turn around time is " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
-
+        stream << "Total wait time: " << waitTime << " clock ticks\n";
+        stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
+        stream << "Total processes: " << processAmount << " clock ticks\n";
+        stream << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+        stream << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
     }
 }
 
@@ -273,10 +275,7 @@ void MFQS(vector<Process*> processes, int numQueues, int ageInterval, int timeQu
                 readyProcesses++;
             
         }
-    }
     
-
-
 
 
         whichQueue = 0;
@@ -398,10 +397,10 @@ void MFQS(vector<Process*> processes, int numQueues, int ageInterval, int timeQu
         else {
             stream << timer << "\n";
         }
+        
+    }
 
-
-
-    if (terminalOutput) {
+    if (terminalOutput = 1) {
         cout << "\nStats:\n";
         cout << "Total Wait Time: " << masterWaitTime << " clock ticks\n";
         cout << "Total Turnaroud time: " << masterTurnAround  << " clock ticks\n";
