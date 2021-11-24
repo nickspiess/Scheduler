@@ -73,7 +73,7 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
     }
     int timer = 0;
     int executeTime = 0;
-    int masterBurst = 0;
+    int originalBurst = 0;
 
     unsigned long int waitTime = 0;
     unsigned long int turnAroundTime = 0;
@@ -106,7 +106,6 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
 
         if(haveProcess) {
             if(processQueue.top().processPid != process.processPid){
-                // grab the new process that has come in
                 if (terminalOutput) {
                     cout << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
                 }
@@ -114,15 +113,14 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
                     stream << "Process " << process.processPid << " ran from " << timer - executeTime << " through " << timer-1 << "\n";
                 }
                 process = processQueue.top();
-                masterBurst = process.processBst;
+                originalBurst = process.processBst;
                 executeTime = 0;
             }
             processQueue.pop();
         }else if(processQueue.size() > 0) {
-            //grab the top process
             executeTime=0;
             process = processQueue.top(); 
-            masterBurst = process.processBst;
+            originalBurst = process.processBst;
             processQueue.pop();
             haveProcess = true;
         }else {
@@ -131,8 +129,8 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
         
         while(haveProcess && (timer+process.processBst) > process.processDline) {
             waitTime += timer - process.processArr;
+            turnAroundTime += timer - process.processArr;
             haveProcess = false;
-            turnAroundTime += (timer - process.processArr);
             failedProcess = true;
             if (terminalOutput) {
                     cout << "Process " << process.processPid << " removed at clock tick " << timer << " due to having a deadline already passed or that will pass before its burst finishes\n";
@@ -142,13 +140,11 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
             }
 
             if(processQueue.size() > 0) {
-                //grab the top process
                 executeTime = 0;
-                process = processQueue.top(); //grab earliest deadline
-                processQueue.pop();//remove
+                process = processQueue.top();
+                processQueue.pop();
                 haveProcess = true;
             }else {
-                //we don't have a process and there is nothing in the queue
                 haveProcess = false;
             }
         }
@@ -169,7 +165,7 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
             process.processBst--;
             if(process.processBst == 0){
                 //process has finished
-                waitTime += (timer + 1 - process.processArr) - masterBurst;
+                waitTime += (timer + 1 - process.processArr) - originalBurst;
                 turnAroundTime += (timer - process.processArr);
                 
                 if (terminalOutput) {
@@ -191,19 +187,20 @@ void RTS(vector<Process*> processes, fstream& stream, int terminalOutput) {
 
     if (terminalOutput) {
         cout << "\n";
-        cout << "Total wait time: " << waitTime << " clock ticks\n";
-        cout << "Total turn around time: " << turnAroundTime << " clock ticks\n";
-        cout << "Total processes: " << processAmount << " clock ticks\n";
-        cout << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
-        cout << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+        cout << "The total waiting time is " << waitTime << " clock ticks\n";
+        cout << "The total turn around time is " << turnAroundTime << " clock ticks\n";
+        cout << "The total processes ran is " << processAmount << " processes\n";
+        cout << "The average wait time is " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+        cout << "The average turn around time is " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
     }
     else {
         stream << "\n";
-        stream << "Total wait time: " << waitTime << " clock ticks\n";
-        stream << "Total turn around time: " << turnAroundTime << " clock ticks\n";
-        stream << "Total processes: " << processAmount << " clock ticks\n";
-        stream << "Average turn around time: " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
-        stream << "Average wait time: " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+        stream << "The total waiting time is " << waitTime << " clock ticks\n";
+        stream << "The total turn around time is " << turnAroundTime << " clock ticks\n";
+        stream << "The total processes ran is " << processAmount << " processes ticks\n";
+        stream << "The average wait time is " << ((float)waitTime)/((float)processAmount) << " clock ticks\n";
+        stream << "The average turn around time is " << ((float)turnAroundTime)/((float)processAmount) << " clock ticks\n";
+
     }
 }
 
@@ -275,9 +272,8 @@ void MFQS(vector<Process*> processes, int numQueues, int ageInterval, int timeQu
                 readyProcesses++;
             
         }
-    
-
-
+    }
+ 
         whichQueue = 0;
         // cycle through queues to find a process
         while(whichQueue < queues.size() && queues[whichQueue].size() == 0) {
@@ -397,10 +393,8 @@ void MFQS(vector<Process*> processes, int numQueues, int ageInterval, int timeQu
         else {
             stream << timer << "\n";
         }
-        
-    }
 
-    if (terminalOutput = 1) {
+    if (terminalOutput) {
         cout << "\nStats:\n";
         cout << "Total Wait Time: " << masterWaitTime << " clock ticks\n";
         cout << "Total Turnaroud time: " << masterTurnAround  << " clock ticks\n";
@@ -449,6 +443,77 @@ vector<Process*> processCreator(string fileName) {
     return processes;
 }
 
+Process* createUserProcesses() {
+    // Create a vector of all our processes
+    Process* processes;
+    bool correctInput = false;
+    while (!correctInput) {
+        int pid, burst, arrival, priority, deadline, io;
+
+        cout << "Enter PID: ";
+        cin >> pid;
+        while(cin.fail())
+        {
+            cout << "Integer not added. Please try again: ";
+            // user didn't input a number
+            cin.clear(); // reset failbit
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            cin >> pid;
+        }
+        cout << "Enter Burst: ";
+        cin >> burst;
+        while(cin.fail())
+        {
+            cout << "Integer not added. Please try again: ";
+            // user didn't input a number
+            cin.clear(); // reset failbit
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            cin >> pid;
+        }
+        cout << "Enter Arrival: ";
+        cin >> arrival;
+        while(cin.fail())
+        {
+        cout << "Integer not added. Please try again: ";
+        // user didn't input a number
+        cin.clear(); // reset failbit
+        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        cin >> pid;
+        }
+        cout << "Enter Priority: ";
+        cin >> priority;
+        while(cin.fail())
+        {
+            cout << "Integer not added. Please try again: ";
+            // user didn't input a number
+            cin.clear(); // reset failbit
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            cin >> pid;
+        }
+        cout << "Enter Deadline: ";
+        cin >> deadline;
+        while(cin.fail())
+        {
+            cout << "Integer not added. Please try again: ";
+            // user didn't input a number
+            cin.clear(); // reset failbit
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            cin >> pid;
+        }
+        cout << "Enter IO: ";
+        cin >> io;
+        while(cin.fail())
+        {
+            cout << "Integer not added. Please try again: ";
+            // user didn't input a number
+            cin.clear(); // reset failbit
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            cin >> pid;
+        }
+        return new Process(pid, burst, arrival, priority, deadline, io);
+    }
+    return 0;
+}
 
 bool compareArrival(const Process* beg, const Process* end){
     return beg->processArr < end->processArr;
@@ -462,28 +527,35 @@ bool compareDeadline(const Process* beg, const Process* end){
 int main()
 {
     
-    vector<Process*> processes;
     string programType;
+    string input;
     int numQueues;
     string fileName;
     int ageInterval;
     int timeQuantum;
     int terminalOutput;
+    // Create a vector of processes
+    vector<Process*> processes;
     
+    cout << "Welcome to our Scheduling Algorithm Program\n";
+    cout << "Do you want to create your own processes?\nType 'y' to create your own\nType any other key to skip\n";
+    cin >> input;
+    // create your own process
+    while (input == "y") {
+        processes.push_back(createUserProcesses());
+        cout << "Do you want to create another process?\nType 'y' to create your own\nType any other key to exit\n";
+        cin >> input;
+    }
     
-    std::cout << "Welcome to our Scheduling Algorithm Program\n";
-    std::cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:\n";
+    cout << "Please select which algorithm you'd like to run.\n Type 'a' for a Multi-Level Feedback Queue Scheduler (MFQS)\n Type 'b' for a Real-Time Scheduler (RTS)\n Type 'q' to quit:\n";
         
-    std::cin >> programType;
+    cin >> programType;
     // Check number of queues
     //cout << "You entered: " << programType << "\n";
-        
-    // Vector queue of our processes using the Process class
-    vector<Process*> processesCreated;
 
     if (programType == "q") {
             exit(1);
-        }
+    }
 
     // MFQS
     if (programType == "a") {
@@ -500,8 +572,6 @@ int main()
         // Create and initialize vector container of queues based on user input
         vector<std::queue<int> > queues(numQueues);
         
-        // Create a vector of processes
-        vector<Process*> processes;
         
 
         // Can be accessed through queues[0], queues[1], ...,  queues[4]
